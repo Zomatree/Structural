@@ -1,6 +1,6 @@
 extern crate proc_macro;
 use proc_macro::{TokenStream};
-use syn::{DeriveInput, parse_macro_input, parse::Parse, Type, Ident, Token};
+use syn::{DeriveInput, parse_macro_input, parse::Parse, Type, Ident, Token, Generics};
 use quote::quote;
 
 /// Makes a struct structural
@@ -8,7 +8,9 @@ use quote::quote;
 pub fn _struct(input: TokenStream) -> TokenStream {
    let input = parse_macro_input!(input as DeriveInput);
 
-    let DeriveInput {  ident, data, .. } = &input;
+    let DeriveInput { generics, ident, data, .. } = &input;
+
+    let Generics { params, where_clause, .. } = generics;
 
     let fields = match &data {
         syn::Data::Struct(s) => &s.fields,
@@ -30,18 +32,18 @@ pub fn _struct(input: TokenStream) -> TokenStream {
         let ty = &field.ty;
 
         quote! {
-            impl ::structural::HasAttr<#name> for #ident {
+            impl<#params> ::structural::HasAttr<#name> for #ident<#params> #where_clause {
                 type Ty = #ty;
 
-                fn get(&self) -> &#ty {
+                fn get_attr(&self) -> &#ty {
                     &self.#name_ident
                 }
 
-                fn set(&mut self, value: #ty) {
+                fn set_attr(&mut self, value: #ty) {
                     self.#name_ident = value
                 }
 
-                fn take(self) -> #ty {
+                fn take_attr(self) -> #ty {
                     self.#name_ident
                 }
             }
@@ -49,7 +51,7 @@ pub fn _struct(input: TokenStream) -> TokenStream {
     });
 
     let attrs_derive = quote! {
-        impl ::structural::Attrs for #ident {
+        impl<#params> ::structural::Attrs for #ident<#params> #where_clause {
             const ATTRS: &'static [(&'static str, &'static str)] = &[#(#attrs_quote),*];
         }
     };
